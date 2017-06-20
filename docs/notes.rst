@@ -33,15 +33,15 @@ Installation
 3. host names
 -------------
 
-- *lists.codespeak.net* > ``/etc/hostname``
-- *lists.codespeak.net* > ``/etc/mailname``
+- **lists.codespeak.net** > ``/etc/hostname``
+- **lists.codespeak.net** > ``/etc/mailname``
 
 4. Postfix
 ----------
 
 - ``aptitude install postfix``
 - configuration type "Internet Site"
-- mail name *lists.codespeak.net*
+- mail name **lists.codespeak.net**
 
 5. Mailman 3
 ------------
@@ -134,6 +134,10 @@ As user ``mailman`` (``su - mailman``):
 - ``/home/mailman/mailman/bin/mailman -C /etc/mailman3/mailman.cfg info``
 - ``ln -sf /etc/mailman3/mailman.cfg /home/mailman/var/etc/mailman.cfg``
 
+Back as user root:
+
+- ``systemctl reload postfix``
+
 6. OpenDKIM
 -----------
 
@@ -166,6 +170,8 @@ Setup steps:
     non_smtpd_milters = unix:/run/opendkim/opendkim.sock
 
   >> ``/etc/postfix/main.cf``
+- ``systemctl reload opendkim``
+- ``systemctl reload postfix``
 
 7. Postorius (Mailman Web UI)
 -----------------------------
@@ -360,14 +366,151 @@ As user ``mailman`` (``su - mailman``):
     - ``update django_site set domain='lists.codespeak.net' where id=1;``
     - ``update django_site set name='lists.codespeak.net' where id=1;``
 
-8. Let's Encrypt
-----------------
+Back as user root:
 
-- https://github.com/lukas2511/dehydrated
+- ``systemctl reload uwsgi``
 
-9. Nginx
+8. Nginx
 --------
 
+- ``aptitude install nginx``
+- .. code-block:: nginx
 
+    server {
+        listen 80;
 
-Try without SITE_ID
+        server_name lists.codespeak.net;
+
+        location /static/ {
+            alias /var/www/postorius/;
+        }
+
+        location / {
+            include uwsgi_params;
+            uwsgi_pass unix:/run/uwsgi/app/postorius/socket;
+        }
+    }
+
+  > ``/etc/nginx/sites-available/lists
+- ``ln -s /etc/nginx/sites-available/lists /etc/nginx/sites-enabled/``
+- ``systemctl reload nginx``
+
+9. Let's Encrypt
+----------------
+
+Documentation used:
+
+- https://github.com/lukas2511/dehydrated
+- https://hynek.me/articles/hardening-your-web-servers-ssl-ciphers/
+
+Setup steps:
+
+- ``aptitude install dehydrated``
+- .. code-block:: bash
+
+    CONTACT_EMAIL="admins@lists.codespeak.net"
+
+  > ``/etc/dehydrated/conf.d/contact_email.sh``
+- .. code-block:: bash
+
+    HOOK="/etc/dehydrated/hook.sh"
+
+  > ``/etc/dehydrated/conf.d/hook.sh``
+- .. code-block:: bash
+
+    #!/bin/sh
+    case "$1" in
+        "deploy_cert")
+            systemctl reload nginx
+            ;;
+        *)
+            return
+    esac
+
+  > ``/etc/dehydrated/hook.sh``
+- ``chmod u+x /etc/dehydrated/hook.sh``
+- .. code-block:: bash
+
+    CA="https://acme-staging.api.letsencrypt.org/directory"
+    CA_TERMS="https://acme-staging.api.letsencrypt.org/terms"
+
+  > ``/etc/dehydrated/conf.d/staging.sh``
+- .. code-block:: diff
+
+    diff --git a/nginx/sites-available/lists b/nginx/sites-available/lists
+    index 3b1ebee..0297b9f 100644
+    --- a/nginx/sites-available/lists
+    +++ b/nginx/sites-available/lists
+    @@ -3,6 +3,10 @@ server {
+
+        server_name lists.codespeak.net;
+
+    +   location /.well-known/acme-challenge {
+    +       alias /var/lib/dehydrated/acme-challenges;
+    +   }
+    +
+        location /static/ {
+            alias /var/www/postorius/;
+        }
+- **lists.codespeak.net** > ``/etc/dehydrated/domains.txt``
+- ``systemctl reload nginx``
+- ``dehydrated -c``
+- .. code-block:: diff
+
+    diff --git a/nginx/sites-available/lists b/nginx/sites-available/lists
+    index 3b1ebee..0297b9f 100644
+    --- a/nginx/sites-available/lists
+    +++ b/nginx/sites-available/lists
+    @@ -7,6 +7,18 @@ server {
+                    alias /var/lib/dehydrated/acme-challenges;
+            }
+
+    +       location / {
+    +               return 302 https://$http_host$request_uri;
+    +       }
+    +}
+    +
+    +server {
+    +       listen 443 ssl;
+    +       server_name lists.codespeak.net;
+    +
+    +       ssl_certificate /var/lib/dehydrated/certs/lists.codespeak.net/fullchain.pem;
+    +       ssl_certificate_key /var/lib/dehydrated/certs/lists.codespeak.net/privkey.pem;
+    +
+            location /static/ {
+                    alias /var/www/postorius/;
+            }
+- ``systemctl reload nginx``
+- Check certificate with browser, should be from staging server
+- ``git rm dehydrated/conf.d/staging.sh``
+- Now we run dehydrated again with the real server and use ``-x`` to force certificate renewal
+- ``dehydrated -c -x``
+- The hook should have been called this time, so we don't need to reload nginx manually
+- Check certificate with browser, should be valid now
+- ``openssl dhparam -out /etc/nginx/dhparam.pem 4096`` — take a long walk for this
+- .. code-block:: diff
+
+    diff --git a/nginx/nginx.conf b/nginx/nginx.conf
+    index 6e57ea9..55ae279 100644
+    --- a/nginx/nginx.conf
+    +++ b/nginx/nginx.conf
+    @@ -31,8 +31,11 @@ http {
+            # SSL Settings
+            ##
+
+    +       # see https://hynek.me/articles/hardening-your-web-servers-ssl-ciphers/
+            ssl_protocols TLSv1 TLSv1.1 TLSv1.2; # Dropping SSLv3, ref: POODLE
+            ssl_prefer_server_ciphers on;
+    +       ssl_ciphers ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:RSA+AESGCM:RSA+AES:!aNULL:!MD5:!DSS;
+    +       ssl_dhparam dhparam.pem;
+
+            ##
+            # Logging Settings
+- ``systemctl reload nginx``
+- Use https://www.ssllabs.com/ssltest/analyze.html?d=lists.codespeak.net&hideResults=on&latest to check your domain
+- If wanted, you can do more, see https://observatory.mozilla.org/analyze.html?host=lists.codespeak.net
+
+Todo
+====
+
+- Try without ``SITE_ID``
