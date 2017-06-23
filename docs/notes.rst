@@ -510,6 +510,58 @@ Setup steps:
 - Use https://www.ssllabs.com/ssltest/analyze.html?d=lists.codespeak.net&hideResults=on&latest to check your domain
 - If wanted, you can do more, see https://observatory.mozilla.org/analyze.html?host=lists.codespeak.net
 
+10. rspamd
+----------
+
+Documentation used:
+
+- https://rspamd.com/
+
+Setup steps:
+
+- ``https://rspamd.com/apt-stable/gpg.key | apt-key add -``
+- .. code-block::
+
+    deb http://rspamd.com/apt-stable/ stretch main
+    deb-src http://rspamd.com/apt-stable/ stretch main
+
+  > ``/etc/apt/sources.list.d/rspamd.list``
+- ``aptitude update``
+- ``aptitude install rspamd``
+- .. code-block::
+
+    bind_socket = "localhost:11333";
+    enabled = false;
+
+  > ``/etc/rspamd/local.d/worker-normal.inc``
+- .. code-block:: nginx
+
+    bind_socket = "localhost:11332";
+    milter = yes; # Enable milter mode
+    timeout = 120s; # Needed for Milter usually
+    upstream "local" {
+      default = yes; # Self-scan upstreams are always default
+      self_scan = yes; # Enable self-scan
+    }
+
+  > ``/etc/rspamd/local.d/worker-proxy.inc``
+- ``systemctl reload rspamd``
+- .. code-block:: diff
+
+    diff --git a/postfix/main.cf b/postfix/main.cf
+    index aaf6f7e..a400d58 100644
+    --- a/postfix/main.cf
+    +++ b/postfix/main.cf
+    @@ -47,6 +47,6 @@ owner_request_special = no
+     transport_maps = hash:/home/mailman/var/data/postfix_lmtp
+     local_recipient_maps = hash:/home/mailman/var/data/postfix_lmtp
+     relay_domains = hash:/home/mailman/var/data/postfix_domains
+    -smtpd_milters = unix:/run/opendkim/opendkim.sock
+    +smtpd_milters = unix:/run/opendkim/opendkim.sock, inet:localhost:11332
+     non_smtpd_milters = unix:/run/opendkim/opendkim.sock
+
+- ``systemctl reload postfix``
+
 Todo
 ====
 
