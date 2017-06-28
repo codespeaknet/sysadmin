@@ -23,6 +23,7 @@ Installation
 
 - ``aptitude update``
 - ``aptitude upgrade``
+- ``aptitude install unattended-upgrades``
 
 2. etckeeper
 ------------
@@ -561,6 +562,39 @@ Setup steps:
      non_smtpd_milters = unix:/run/opendkim/opendkim.sock
 
 - ``systemctl reload postfix``
+
+11. borgbackup
+--------------
+
+Documentation used:
+
+- https://borgbackup.readthedocs.io/en/stable/index.html
+
+Setup steps:
+
+- ``aptitude install borgbackup``
+- ``ssh-keygen -t rsa -b 4096``
+- Use ssh key on destination host according to https://borgbackup.readthedocs.io/en/stable/deployment.html#restrictions
+- ``borg init backup@backup:full`` with passphrase that is used as ``BORG_PASSPHRASE`` in next step
+- ¡Keep the passphrase in a safe place somewhere, so you can access the backup later on!
+- .. code-block:: bash
+
+    #!/bin/sh
+    export BORG_PASSPHRASE=replacewithsomesecurepassphrase
+    REPOSITORY=backup@backup:full
+
+    borg create -v --stats \
+        $REPOSITORY::'{hostname}-{now:%Y%m%d-%H%M}' \
+        /etc \
+        /home \
+        /root \
+        /var
+
+    borg prune -v --list $REPOSITORY --prefix '{hostname}-' \
+        --keep-hourly=24 --keep-daily=7 --keep-weekly=4 --keep-monthly=6
+
+  > ``/root/backup``
+- use ``crontab -e`` to add ``0 * * * * /root/backup``
 
 Todo
 ====
