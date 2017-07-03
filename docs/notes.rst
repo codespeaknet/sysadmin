@@ -72,8 +72,6 @@ Setup steps:
 
   >> ``/etc/postfix/main.cf``
 - ``mkdir /etc/mailman3``
-- ``mkdir /run/mailman3``
-- ``chown mailman:mailman /run/mailman3/``
 - .. code-block:: ini
 
     [mta]
@@ -116,6 +114,9 @@ Setup steps:
     ExecReload=/bin/kill -HUP $MAINPID
     # The main PID receives SIGTERM and by default, SIGKILL 90s later
     KillMode=process
+    PermissionsStartOnly=true
+    ExecStartPre=/bin/mkdir /run/mailman3
+    ExecStartPre=/bin/chown -R mailman:mailman /run/mailman3
     PIDFile=/run/mailman3/master.pid
     SyslogIdentifier=mailman3-core
     Restart=on-failure
