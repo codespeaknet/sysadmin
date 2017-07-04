@@ -426,6 +426,8 @@ Setup steps:
 - .. code-block:: bash
 
     #!/bin/sh
+    set -e
+    set -u
     case "$1" in
         "deploy_cert")
             systemctl reload nginx
@@ -516,6 +518,15 @@ Setup steps:
 - ``systemctl reload nginx``
 - Use https://www.ssllabs.com/ssltest/analyze.html?d=lists.codespeak.net&hideResults=on&latest to check your domain
 - If wanted, you can do more, see https://observatory.mozilla.org/analyze.html?host=lists.codespeak.net
+- .. code-block:: bash
+
+    #!/bin/sh
+    set -e
+    set -u
+    /usr/bin/dehydrated -c
+
+  > ``/etc/cron.weekly/dehydrated``
+- ``chmod u+x /etc/cron.weekly/dehydrated``
 
 10. rspamd
 ----------
