@@ -617,8 +617,9 @@ Setup steps:
     borg prune -v --list $REPOSITORY --prefix '{hostname}-' \
         --keep-hourly=24 --keep-daily=7 --keep-weekly=4 --keep-monthly=6
 
-  > ``/etc/cron.hourly/backup``
-- ``chmod 0700 /etc/cron.hourly/backup``
+  > ``/etc/cron.hourly/zz-backup``
+- It's named ``zz-backup`` to run last
+- ``chmod 0700 /etc/cron.hourly/zz-backup``
 
 Todo
 ====
