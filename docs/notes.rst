@@ -7,7 +7,6 @@ Vagrant Debian base boxes
 https://atlas.hashicorp.com/debian/
 
 Everything is based on Debian 9 "Stretch".
-The installed and packaged software is much more current and the final release will be soon.
 
 Stuff
 -----
