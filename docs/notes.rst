@@ -592,13 +592,21 @@ Setup steps:
 - ``aptitude install borgbackup``
 - ``ssh-keygen -t rsa -b 4096``
 - Use ssh key on destination host according to https://borgbackup.readthedocs.io/en/stable/deployment.html#restrictions
+- Create passphrase with ``python -c "import os, binascii; print binascii.hexlify(os.urandom(16))"``
 - ``borg init backup@backup:full`` with passphrase that is used as ``BORG_PASSPHRASE`` in next step
 - ¡Keep the passphrase in a safe place somewhere, so you can access the backup later on!
 - .. code-block:: bash
 
     #!/bin/sh
-    export BORG_PASSPHRASE=replacewithsomesecurepassphrase
+    set -e
+    set -u
+    export BORG_PASSPHRASE=
     REPOSITORY=backup@backup:full
+
+    if [ -z $BORG_PASSPHRASE ]; then
+        echo Missing passphrase!
+        exit 1
+    fi
 
     borg create -v --stats \
         $REPOSITORY::'{hostname}-{now:%Y%m%d-%H%M}' \
@@ -610,8 +618,8 @@ Setup steps:
     borg prune -v --list $REPOSITORY --prefix '{hostname}-' \
         --keep-hourly=24 --keep-daily=7 --keep-weekly=4 --keep-monthly=6
 
-  > ``/root/backup``
-- use ``crontab -e`` to add ``0 * * * * /root/backup``
+  > ``/etc/cron.hourly/backup``
+- ``chmod 0700 /etc/cron.hourly/backup``
 
 Todo
 ====
