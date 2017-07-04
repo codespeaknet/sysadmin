@@ -415,6 +415,11 @@ Setup steps:
   > ``/etc/dehydrated/conf.d/contact_email.sh``
 - .. code-block:: bash
 
+    BASEDIR=/etc/dehydrated
+
+  > ``/etc/dehydrated/conf.d/basedir.sh``
+- .. code-block:: bash
+
     HOOK="/etc/dehydrated/hook.sh"
 
   > ``/etc/dehydrated/conf.d/hook.sh``
