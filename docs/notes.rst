@@ -13,6 +13,11 @@ Stuff
 
 rspamd and mailman3 aren't officially packaged on Debian at current versions
 
+Hetzner
+-------
+
+- After ordering run the rescue system Linux 64-bit
+- With ``installimage`` use Debian 9 minimal
 
 Installation
 ============
@@ -20,7 +25,8 @@ Installation
 1. Updates
 ----------
 
-- ``aptitude update``
+- ``apt-get update``
+- ``apt-get install aptitude``
 - ``aptitude upgrade``
 - ``aptitude install unattended-upgrades``
 
@@ -28,13 +34,26 @@ Installation
 ------------
 
 - ``aptitude install etckeeper``
-- .gitignore
+- .. code-block:: diff
+    diff --git a/.gitignore b/.gitignore
+    index 9196cf5..74b2861 100644
+    --- a/.gitignore
+    +++ b/.gitignore
+    @@ -46,6 +46,7 @@ check_mk/logwatch.state
 
-3. host names
--------------
+     # editor temp files
+     *~
+    +*-
+     .*.sw?
+     .sw?
+     \#*\#
+  > ``/etc/.gitignore``
 
+3. some basics
+--------------
+
+- use ``update-alternatives --config editor`` to choose the default editor (vim)
 - **lists.codespeak.net** > ``/etc/hostname``
-- **lists.codespeak.net** > ``/etc/mailname``
 
 4. Postfix
 ----------
@@ -61,13 +80,21 @@ Setup steps:
 
 - ``aptitude install virtualenv``
 - ``useradd --system --create-home --shell /bin/bash mailman``
-- ``usermod -G mailman postfix``
-- .. code-block:: ini
+- ``usermod -a -G mailman postfix``
+- .. code-block:: diff
 
-    owner_request_special = no
-    transport_maps = hash:/home/mailman/var/data/postfix_lmtp
-    local_recipient_maps = hash:/home/mailman/var/data/postfix_lmtp
-    relay_domains = hash:/home/mailman/var/data/postfix_domains
+    diff --git a/postfix/main.cf b/postfix/main.cf
+    index 5e1d87e..8b5350a 100644
+    --- a/postfix/main.cf
+    +++ b/postfix/main.cf
+    @@ -43,3 +43,7 @@ mailbox_size_limit = 0
+     recipient_delimiter = +
+     inet_interfaces = all
+     inet_protocols = all
+    +owner_request_special = no
+    +transport_maps = hash:/home/mailman/var/data/postfix_lmtp
+    +local_recipient_maps = hash:/home/mailman/var/data/postfix_lmtp
+    +relay_domains = hash:/home/mailman/var/data/postfix_domains
 
   >> ``/etc/postfix/main.cf``
 - ``mkdir /etc/mailman3``
@@ -133,10 +160,13 @@ As user ``mailman`` (``su - mailman``):
 - ``virtualenv -p python3 /home/mailman/mailman``
 - ``/home/mailman/mailman/bin/pip install mailman``
 - ``/home/mailman/mailman/bin/mailman -C /etc/mailman3/mailman.cfg info``
+- ``mkdir /home/mailman/var/etc``
 - ``ln -sf /etc/mailman3/mailman.cfg /home/mailman/var/etc/mailman.cfg``
+- ``/home/mailman/mailman/bin/mailman aliases``
 
 Back as user root:
 
+- ``systemctl start mailman3-core.service``
 - ``systemctl reload postfix``
 
 6. OpenDKIM
@@ -149,33 +179,71 @@ Documentation used:
 Setup steps:
 
 - ``aptitude install opendkim opendkim-tools``
+- ``usermod -a -G opendkim postfix``
 - ``mkdir /var/spool/postfix/run``
 - ``mkdir /var/spool/postfix/run/opendkim``
 - ``chown opendkim:opendkim /var/spool/postfix/run/opendkim``
 - ``chmod o-rx /var/spool/postfix/run/opendkim/``
-- ``opendkim-genkey --directory /etc/dkimkeys --selector lists --domain lists.codespeak.net``
+- For new key: ``opendkim-genkey --directory /etc/dkimkeys --selector lists --domain lists.codespeak.net``
+- Or restore from backup and ``chmod 0600 /etc/dkimkeys/lists.*``
 - ``chown opendkim /etc/dkimkeys/lists.*``
 - Add the content of ``/etc/dkimkeys/lists.txt`` to DNS
-- Edit ``/etc/defaults/opendkim`` and ``/lib/systemd/system/opendkim.service`` to use ``/var/spool/postfix/run/opendkim/`` instead of ``/var/run/opendkim``
-- .. code-block::
+- .. code-block:: diff
 
-    SenderHeaders Sender,From
-    Domain lists.codespeak.net
-    KeyFile /etc/dkimkeys/lists.private
-    Selector lists
+    diff --git a/default/opendkim b/default/opendkim
+    index ffb2a02..666d5d2 100644
+    --- a/default/opendkim
+    +++ b/default/opendkim
+    @@ -4,7 +4,7 @@
+     # Change to /var/spool/postfix/var/run/opendkim to use a Unix socket with
+     # postfix in a chroot:
+     #RUNDIR=/var/spool/postfix/var/run/opendkim
+    -RUNDIR=/var/run/opendkim
+    +RUNDIR=/var/spool/postfix/run/opendkim
+     #
+     # Uncomment to specify an alternate socket
+     # Note that setting this will override any Socket value in opendkim.conf
 
-  >> ``/etc/opendkim.conf``
-- .. code-block::
+  > ``/etc/default/opendkim``
+- Edit ``/lib/systemd/system/opendkim.service`` to use ``/var/spool/postfix/run/opendkim/`` instead of ``/var/run/opendkim`` (``PIDFile`` and ``ExecStart``)
+- .. code-block:: diff
 
-    smtpd_milters = unix:/run/opendkim/opendkim.sock
-    non_smtpd_milters = unix:/run/opendkim/opendkim.sock
+    diff --git a/opendkim.conf b/opendkim.conf
+    index 4b0cc1f..1edb242 100644
+    --- a/opendkim.conf
+    +++ b/opendkim.conf
+    @@ -47,3 +47,7 @@ OversignHeaders               From
+     ## at http://unbound.net for the expected format of this file.
 
-  >> ``/etc/postfix/main.cf``
-- ``systemctl reload opendkim``
+     TrustAnchorFile       /usr/share/dns/root.key
+    +SenderHeaders Sender,From
+    +Domain lists.codespeak.net
+    +KeyFile /etc/dkimkeys/lists.private
+    +Selector lists
+
+  > ``/etc/opendkim.conf``
+- Using ``/var/spool/postfix`` is required because postfix runs in a chroot
+- .. code-block:: diff
+
+    diff --git a/postfix/main.cf b/postfix/main.cf
+    index 8b5350a..b5ff7cf 100644
+    --- a/postfix/main.cf
+    +++ b/postfix/main.cf
+    @@ -47,3 +47,5 @@ owner_request_special = no
+     transport_maps = hash:/home/mailman/var/data/postfix_lmtp
+     local_recipient_maps = hash:/home/mailman/var/data/postfix_lmtp
+     relay_domains = hash:/home/mailman/var/data/postfix_domains
+    +smtpd_milters = unix:/run/opendkim/opendkim.sock
+    +non_smtpd_milters = unix:/run/opendkim/opendkim.sock
+
+  > ``/etc/postfix/main.cf``
+- ``systemctl daemon-reload``
+- ``systemctl stop opendkim``
+- ``systemctl start opendkim``
 - ``systemctl reload postfix``
 
-7. Postorius (Mailman Web UI)
------------------------------
+7. Postorius (Mailman Web UI) with nginx
+----------------------------------------
 
 Documentation used:
 
@@ -186,7 +254,7 @@ Documentation used:
 
 Setup steps:
 
-- ``aptitude install uwsgi-plugin-python``
+- ``aptitude install nginx sqlite3 uwsgi uwsgi-plugin-python``
 - ``useradd --system --create-home --shell /bin/bash postorius``
 - ``mkdir /var/www/postorius``
 - ``chown postorius:www-data /var/www/postorius``
@@ -201,7 +269,7 @@ Setup steps:
   >> ``/etc/uwsgi/apps-available/postorius.ini``
 - ``ln -s /etc/uwsgi/apps-available/postorius.ini /etc/uwsgi/apps-enabled``
 
-As user ``mailman`` (``su - mailman``):
+As user ``postorius`` (``su - postorius``):
 
 - ``virtualenv -p python2 /home/postorius/postorius``
 - ``/home/postorius/postorius/bin/pip install postorius``
@@ -287,7 +355,7 @@ As user ``mailman`` (``su - mailman``):
     +# Don't put anything in this directory yourself; store your static files
     +# in apps' "static/" subdirectories and in STATICFILES_DIRS.
     +# Example: "/var/www/example.com/static/"
-    +STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+    +STATIC_ROOT = '/var/www/postorius'
     +
     +SITE_ID = 1
     +SITE_URL = 'lists.codespeak.net'
@@ -363,18 +431,11 @@ As user ``mailman`` (``su - mailman``):
 - ``/home/postorius/mailman_postorius/manage.py collectstatic``
 - ``/home/postorius/mailman_postorius/manage.py migrate``
 - ``sqlite3 /home/postorius/mailman_postorius/postorius.db``
-    - ``update auth_user set is_superuser=1 where email='mail@florian-schulze.net';``
     - ``update django_site set domain='lists.codespeak.net' where id=1;``
     - ``update django_site set name='lists.codespeak.net' where id=1;``
 
 Back as user root:
 
-- ``systemctl reload uwsgi``
-
-8. Nginx
---------
-
-- ``aptitude install nginx``
 - .. code-block:: nginx
 
     server {
@@ -394,9 +455,12 @@ Back as user root:
 
   > ``/etc/nginx/sites-available/lists
 - ``ln -s /etc/nginx/sites-available/lists /etc/nginx/sites-enabled/``
+- ``systemctl stop uwsgi``
+- ``systemctl start uwsgi``
 - ``systemctl reload nginx``
+- You shouldn't use this until after the next step which adds https!
 
-9. Let's Encrypt
+8. Let's Encrypt
 ----------------
 
 Documentation used:
@@ -437,6 +501,7 @@ Setup steps:
 
   > ``/etc/dehydrated/hook.sh``
 - ``chmod u+x /etc/dehydrated/hook.sh``
+- If you restore from backup, you don't need ``staging.sh``, but it's recommended for testing and setting up new domains to prevent hitting any rate limits
 - .. code-block:: bash
 
     CA="https://acme-staging.api.letsencrypt.org/directory"
@@ -460,7 +525,8 @@ Setup steps:
         location /static/ {
             alias /var/www/postorius/;
         }
-- **lists.codespeak.net** > ``/etc/dehydrated/domains.txt``
+- At this point you might want to restore ``/etc/dehydrated`` from backup
+- Or for a new setup: **lists.codespeak.net** > ``/etc/dehydrated/domains.txt``
 - ``systemctl reload nginx``
 - ``dehydrated -c``
 - .. code-block:: diff
@@ -482,8 +548,8 @@ Setup steps:
     +       listen 443 ssl;
     +       server_name lists.codespeak.net;
     +
-    +       ssl_certificate /var/lib/dehydrated/certs/lists.codespeak.net/fullchain.pem;
-    +       ssl_certificate_key /var/lib/dehydrated/certs/lists.codespeak.net/privkey.pem;
+    +       ssl_certificate /etc/dehydrated/certs/lists.codespeak.net/fullchain.pem;
+    +       ssl_certificate_key /etc/dehydrated/certs/lists.codespeak.net/privkey.pem;
     +
             location /static/ {
                     alias /var/www/postorius/;
@@ -495,7 +561,7 @@ Setup steps:
 - ``dehydrated -c -x``
 - The hook should have been called this time, so we don't need to reload nginx manually
 - Check certificate with browser, should be valid now
-- ``openssl dhparam -out /etc/nginx/dhparam.pem 4096`` — take a long walk for this
+- ``openssl dhparam -out /etc/nginx/dhparam.pem 4096`` — take a long walk for this, or restore from backup
 - .. code-block:: diff
 
     diff --git a/nginx/nginx.conf b/nginx/nginx.conf
@@ -527,6 +593,20 @@ Setup steps:
   > ``/etc/cron.weekly/dehydrated``
 - ``chmod u+x /etc/cron.weekly/dehydrated``
 
+9. Mailman admins
+-----------------
+
+Now that we have a secure connection, we can continue with Mailman
+
+- Create a new user account on https://lists.codespeak.net
+- You should get a email to activate it
+- Now to make that account a superuser, do: ``sqlite3 /home/postorius/mailman_postorius/postorius.db``
+    - ``update auth_user set is_superuser=1 where email='mail@florian-schulze.net';``
+- "Lists" -> "Create New Domain" -> ``lists.codespeak.net``
+- "Lists" -> "Create New List" -> ``admins``, ``lists.codespeak.net``
+- Go to the new list to "Mass operations" -> "Mass subscribe" and add admin email addresses (at least yourself)
+- Maybe edit "Subject prefix" in "List Identity" to ``[Admins lists.codespeak.net]``
+
 10. rspamd
 ----------
 
@@ -536,7 +616,7 @@ Documentation used:
 
 Setup steps:
 
-- ``https://rspamd.com/apt-stable/gpg.key | apt-key add -``
+- ``curl https://rspamd.com/apt-stable/gpg.key | apt-key add -``
 - .. code-block::
 
     deb http://rspamd.com/apt-stable/ stretch main
@@ -589,11 +669,14 @@ Documentation used:
 Setup steps:
 
 - ``aptitude install borgbackup``
-- ``ssh-keygen -t rsa -b 4096``
-- Use ssh key on destination host according to https://borgbackup.readthedocs.io/en/stable/deployment.html#restrictions
-- Create passphrase with ``python -c "import os, binascii; print binascii.hexlify(os.urandom(16))"``
-- ``borg init backup@backup:full`` with passphrase that is used as ``BORG_PASSPHRASE`` in next step
+- At this point you might want to restore your ssh key from backup,
+- Or create a new one: ``ssh-keygen -t rsa -b 4096``
+- Use public ssh key on destination host according to https://borgbackup.readthedocs.io/en/stable/deployment.html#restrictions
+- Get your passphrase ready for an existing backup,
+- Or create a new passphrase with ``python -c "import os, binascii; print binascii.hexlify(os.urandom(16))"``
 - ¡Keep the passphrase in a safe place somewhere, so you can access the backup later on!
+- For a new backup: ``borg init backup@backup:full`` with passphrase that is used as ``BORG_PASSPHRASE`` in next step,
+- Or use you existing passphrase as ``BORG_PASSPHRASE``
 - .. code-block:: bash
 
     #!/bin/sh
@@ -620,8 +703,3 @@ Setup steps:
   > ``/etc/cron.hourly/zz-backup``
 - It's named ``zz-backup`` to run last
 - ``chmod 0700 /etc/cron.hourly/zz-backup``
-
-Todo
-====
-
-- Try without ``SITE_ID``
