@@ -54,6 +54,8 @@ Installation
 
 - use ``update-alternatives --config editor`` to choose the default editor (vim)
 - **lists.codespeak.net** > ``/etc/hostname``
+- check ``/etc/hosts``
+- ``reboot`` to properly update the hostname
 
 4. Postfix
 ----------
@@ -103,9 +105,9 @@ Setup steps:
     [mta]
     incoming: mailman.mta.postfix.LMTP
     outgoing: mailman.mta.deliver.deliver
-    lmtp_host: mail.example.com
+    lmtp_host: 127.0.0.1
     lmtp_port: 8024
-    smtp_host: mail.example.com
+    smtp_host: localhost
     smtp_port: 25
     configuration: /etc/mailman3/postfix-mailman.cfg
 
@@ -141,7 +143,7 @@ Setup steps:
     # The main PID receives SIGTERM and by default, SIGKILL 90s later
     KillMode=process
     PermissionsStartOnly=true
-    ExecStartPre=/bin/mkdir /run/mailman3
+    ExecStartPre=/bin/mkdir -p /run/mailman3
     ExecStartPre=/bin/chown -R mailman:mailman /run/mailman3
     PIDFile=/run/mailman3/master.pid
     SyslogIdentifier=mailman3-core
@@ -166,6 +168,7 @@ As user ``mailman`` (``su - mailman``):
 
 Back as user root:
 
+- ``systemctl enable mailman3-core.service``
 - ``systemctl start mailman3-core.service``
 - ``systemctl reload postfix``
 
