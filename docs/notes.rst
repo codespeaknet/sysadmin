@@ -610,6 +610,24 @@ Now that we have a secure connection, we can continue with Mailman
 - Go to the new list to "Mass operations" -> "Mass subscribe" and add admin email addresses (at least yourself)
 - Maybe edit "Subject prefix" in "List Identity" to ``[Admins lists.codespeak.net]``
 
+- Subscribe root@lists.codespeak.net to the list
+- Disable mail delivery for root@lists.codespeak.net
+- Let cron send output to the list:
+- .. code-block:: diff
+
+    diff --git a/crontab b/crontab
+    index 95edd9b..d923b2a 100644
+    --- a/crontab
+    +++ b/crontab
+    @@ -6,6 +6,7 @@
+
+     SHELL=/bin/sh
+     PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+    +MAILTO=admins@lists.codespeak.net
+
+     # m h dom mon dow user command
+     17 *   * * *   root    cd / && run-parts --report /etc/cron.hourly
+
 10. rspamd
 ----------
 
