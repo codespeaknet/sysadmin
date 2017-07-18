@@ -741,6 +741,7 @@ Setup steps:
     set -e
     set -u
     export BORG_PASSPHRASE=
+    export BORG_LOGGING_CONF=/etc/borg-logging.ini
     REPOSITORY=backup@backup:full
 
     if [ -z $BORG_PASSPHRASE ]; then
@@ -761,3 +762,54 @@ Setup steps:
   > ``/etc/cron.hourly/zz-backup``
 - It's named ``zz-backup`` to run last
 - ``chmod 0700 /etc/cron.hourly/zz-backup``
+- .. code-block:: ini
+
+    [loggers]
+    keys = root
+
+    [handlers]
+    keys = logfile, stderr
+
+    [formatters]
+    keys = plain, timestamped
+
+    [logger_root]
+    level = INFO
+    handlers = logfile, stderr
+
+    [handler_logfile]
+    class = FileHandler
+    level = INFO
+    formatter = timestamped
+    args = ('/var/log/borg-backup.log',)
+
+    [handler_stderr]
+    class = StreamHandler
+    args = (sys.stderr,)
+    level = WARN
+    formatter = plain
+
+    [formatter_plain]
+    format = %(message)s
+    datefmt =
+    class = logging.Formatter
+
+    [formatter_timestamped]
+    format = %(asctime)s,%(msecs)03d %(levelname)-5.5s %(message)s
+    datefmt = %y-%m-%d %H:%M:%S
+    class = logging.Formatter
+
+  > /etc/borg-logging.ini
+
+- .. code-block::
+
+    /var/log/borg-backup {
+      rotate 30
+      daily
+      compress
+      delaycompress
+      missingok
+      notifempty
+    }
+
+  > /etc/logrotate.d/borg-backup
