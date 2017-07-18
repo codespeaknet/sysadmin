@@ -470,6 +470,7 @@ Documentation used:
 
 - https://github.com/lukas2511/dehydrated
 - https://hynek.me/articles/hardening-your-web-servers-ssl-ciphers/
+- http://www.postfix.org/TLS_README.html
 
 Setup steps:
 
@@ -595,6 +596,42 @@ Setup steps:
 
   > ``/etc/cron.weekly/dehydrated``
 - ``chmod u+x /etc/cron.weekly/dehydrated``
+- .. code-block:: diff
+
+    diff --git a/postfix/main.cf b/postfix/main.cf
+    index a2e2f1d..aac0715 100644
+    --- a/postfix/main.cf
+    +++ b/postfix/main.cf
+    @@ -22,8 +22,8 @@ readme_directory = no
+     compatibility_level = 2
+
+     # TLS parameters
+    -smtpd_tls_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
+    -smtpd_tls_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
+    +smtpd_tls_cert_file=/etc/dehydrated/certs/lists.codespeak.net/fullchain.pem
+    +smtpd_tls_key_file=/etc/dehydrated/certs/lists.codespeak.net/privkey.pem
+     smtpd_use_tls=yes
+     smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
+     smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
+    diff --git a/postfix/master.cf b/postfix/master.cf
+    index ff58b4d..f135d8c 100644
+    --- a/postfix/master.cf
+    +++ b/postfix/master.cf
+    @@ -25,10 +25,10 @@ smtp      inet  n       -       y       -       -       smtpd
+     #  -o smtpd_recipient_restrictions=
+     #  -o smtpd_relay_restrictions=permit_sasl_authenticated,reject
+     #  -o milter_macro_daemon_name=ORIGINATING
+    -#smtps     inet  n       -       y       -       -       smtpd
+    -#  -o syslog_name=postfix/smtps
+    -#  -o smtpd_tls_wrappermode=yes
+    -#  -o smtpd_sasl_auth_enable=yes
+    +smtps     inet  n       -       y       -       -       smtpd
+    +  -o syslog_name=postfix/smtps
+    +  -o smtpd_tls_wrappermode=yes
+    +  -o smtpd_sasl_auth_enable=yes
+     #  -o smtpd_reject_unlisted_recipient=no
+     #  -o smtpd_client_restrictions=$mua_client_restrictions
+     #  -o smtpd_helo_restrictions=$mua_helo_restrictions
 
 9. Mailman admins
 -----------------
