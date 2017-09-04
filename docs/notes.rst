@@ -814,3 +814,15 @@ Setup steps:
     }
 
   > /etc/logrotate.d/borg-backup
+
+12. Commit hook for etckeeper
+-----------------------------
+
+- ``aptitude install mailutils``
+- .. code-block:: bash
+
+    #!/bin/sh
+    git log -1 HEAD | mail -s "etckeeper commit" admins@lists.codespeak.net
+
+  > /etc/.git/hooks/post-commit
+- ``chmod u+x /etc/.git/hooks/post-commit``
