@@ -456,7 +456,7 @@ Back as user root:
         }
     }
 
-  > ``/etc/nginx/sites-available/lists
+  > ``/etc/nginx/sites-available/lists``
 - ``ln -s /etc/nginx/sites-available/lists /etc/nginx/sites-enabled/``
 - ``systemctl stop uwsgi``
 - ``systemctl start uwsgi``
@@ -632,6 +632,7 @@ Setup steps:
      #  -o smtpd_reject_unlisted_recipient=no
      #  -o smtpd_client_restrictions=$mua_client_restrictions
      #  -o smtpd_helo_restrictions=$mua_helo_restrictions
+- ``systemctl reload postfix``
 
 9. Mailman admins
 -----------------
