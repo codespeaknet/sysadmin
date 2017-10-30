@@ -826,3 +826,74 @@ Setup steps:
 
   > /etc/.git/hooks/post-commit
 - ``chmod u+x /etc/.git/hooks/post-commit``
+
+13. dovecot
+-----------
+
+- ``aptitude install dovecot-imapd``
+- require SSL:
+- .. code-block:: diff
+
+    diff --git a/dehydrated/hook.sh b/dehydrated/hook.sh
+    index b6df571..3b0b9b7 100755
+    --- a/dehydrated/hook.sh
+    +++ b/dehydrated/hook.sh
+    @@ -4,6 +4,7 @@ set -u
+     case "$1" in
+         "deploy_cert")
+             systemctl reload nginx
+    +        systemctl reload dovecot
+             ;;
+         *)
+             return
+    diff --git a/dovecot/conf.d/10-ssl.conf b/dovecot/conf.d/10-ssl.conf
+    index ab2dc01..9276be6 100644
+    --- a/dovecot/conf.d/10-ssl.conf
+    +++ b/dovecot/conf.d/10-ssl.conf
+    @@ -3,7 +3,7 @@
+     ##
+
+     # SSL/TLS support: yes, no, required. <doc/wiki/SSL.txt>
+    -ssl = no
+    +ssl = required
+
+     # PEM encoded X.509 SSL/TLS certificate and private key. They're opened before
+     # dropping root privileges, so keep the key file unreadable by anyone but
+    @@ -11,6 +11,8 @@ ssl = no
+     # certificate, just make sure to update the domains in dovecot-openssl.cnf
+     #ssl_cert = </etc/dovecot/dovecot.pem
+     #ssl_key = </etc/dovecot/private/dovecot.pem
+    +ssl_cert = </etc/dehydrated/certs/lists.codespeak.net/fullchain.pem
+    +ssl_key = </etc/dehydrated/certs/lists.codespeak.net/privkey.pem
+
+     # If key file is password protected, give the password here. Alternatively
+     # give it when starting dovecot with -p parameter. Since this file is often
+- Enable local delivery:
+- .. code-block:: diff
+
+    diff --git a/dovecot/conf.d/10-mail.conf b/dovecot/conf.d/10-mail.conf
+    index cc0d35e..e3c4de0 100644
+    --- a/dovecot/conf.d/10-mail.conf
+    +++ b/dovecot/conf.d/10-mail.conf
+    @@ -111,7 +111,7 @@ namespace inbox {
+     # Group to enable temporarily for privileged operations. Currently this is
+     # used only with INBOX when either its initial creation or dotlocking fails.
+     # Typically this is set to "mail" to give access to /var/mail.
+    -#mail_privileged_group =
+    +mail_privileged_group = mail
+
+     # Grant access to these supplementary groups for mail processes. Typically
+     # these are used to set up access to shared mailboxes. Note that it may be
+    diff --git a/postfix/main.cf b/postfix/main.cf
+    index aac0715..8b00b7d 100644
+    --- a/postfix/main.cf
+    +++ b/postfix/main.cf
+    @@ -45,7 +45,7 @@ inet_interfaces = all
+     inet_protocols = all
+     owner_request_special = no
+     transport_maps = hash:/home/mailman/var/data/postfix_lmtp
+    -local_recipient_maps = hash:/home/mailman/var/data/postfix_lmtp
+    +local_recipient_maps = proxy:unix:passwd.byname hash:/home/mailman/var/data/postfix_lmtp
+     relay_domains = hash:/home/mailman/var/data/postfix_domains
+     smtpd_milters = unix:/run/opendkim/opendkim.sock, inet:localhost:11332
+     non_smtpd_milters = unix:/run/opendkim/opendkim.sock
