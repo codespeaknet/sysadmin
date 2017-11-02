@@ -897,3 +897,50 @@ Setup steps:
      relay_domains = hash:/home/mailman/var/data/postfix_domains
      smtpd_milters = unix:/run/opendkim/opendkim.sock, inet:localhost:11332
      non_smtpd_milters = unix:/run/opendkim/opendkim.sock
+- Enable SASL auth
+- .. code-block:: diff
+
+    diff --git a/dovecot/conf.d/10-auth.conf b/dovecot/conf.d/10-auth.conf
+    index 1c59eb4..187b262 100644
+    --- a/dovecot/conf.d/10-auth.conf
+    +++ b/dovecot/conf.d/10-auth.conf
+    @@ -97,7 +97,7 @@
+     #   plain login digest-md5 cram-md5 ntlm rpa apop anonymous gssapi otp skey
+     #   gss-spnego
+     # NOTE: See also disable_plaintext_auth setting.
+    -auth_mechanisms = plain
+    +auth_mechanisms = plain login
+
+     ##
+     ## Password and user databases
+    diff --git a/dovecot/conf.d/10-master.conf b/dovecot/conf.d/10-master.conf
+    index e3d6260..441f95a 100644
+    --- a/dovecot/conf.d/10-master.conf
+    +++ b/dovecot/conf.d/10-master.conf
+    @@ -93,9 +93,9 @@ service auth {
+       }
+
+       # Postfix smtp-auth
+    -  #unix_listener /var/spool/postfix/private/auth {
+    -  #  mode = 0666
+    -  #}
+    +  unix_listener /var/spool/postfix/private/auth {
+    +    mode = 0666
+    +  }
+
+       # Auth process is run as this user.
+       #user = $default_internal_user
+    diff --git a/postfix/main.cf b/postfix/main.cf
+    index 8b00b7d..4963822 100644
+    --- a/postfix/main.cf
+    +++ b/postfix/main.cf
+    @@ -49,3 +49,8 @@ local_recipient_maps = proxy:unix:passwd.byname hash:/home/mailman/var/data/post
+     relay_domains = hash:/home/mailman/var/data/postfix_domains
+     smtpd_milters = unix:/run/opendkim/opendkim.sock, inet:localhost:11332
+     non_smtpd_milters = unix:/run/opendkim/opendkim.sock
+    +smtpd_sasl_type = dovecot
+    +smtpd_sasl_auth_enable = yes
+    +smtpd_recipient_restrictions = permit_sasl_authenticated permit_mynetworks reject_unauth_destination
+    +smtpd_sasl_path = private/auth
+- ``systemctl reload dovecot``
+- ``systemctl reload postfix``
