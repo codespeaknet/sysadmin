@@ -48,6 +48,9 @@ Installation
      .sw?
      \#*\#
   > ``/etc/.gitignore``
+- You might want to edit ``/etc/etckeeper/etckeeper.conf`` to your liking.
+  The most useful settings to look into are ``AVOID_DAILY_AUTOCOMMITS`` and
+  ``AVOID_COMMIT_BEFORE_INSTALL``.
 
 3. some basics
 --------------
