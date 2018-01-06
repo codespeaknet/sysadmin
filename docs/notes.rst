@@ -8,15 +8,17 @@ https://atlas.hashicorp.com/debian/
 
 Everything is based on Debian 9 "Stretch".
 
-Stuff
------
+Preliminary notes
+-----------------
 
 rspamd and mailman3 aren't officially packaged on Debian at current versions
 
 Hetzner
 -------
 
-- After ordering run the rescue system Linux 64-bit
+- When ordering a VM, just use "Debian 9 minimal" or any other operating
+  system.  After ordering **run the rescue system Linux 64-bit** and then
+
 - With ``installimage`` use Debian 9 minimal
 
 Installation
@@ -25,15 +27,12 @@ Installation
 1. Updates
 ----------
 
-- ``apt-get update``
-- ``apt-get install aptitude``
-- ``aptitude upgrade``
-- ``aptitude install unattended-upgrades``
+- ``apt update``
 
 2. etckeeper
 ------------
 
-- ``aptitude install etckeeper``
+- ``apt install etckeeper``
 - .. code-block:: diff
     diff --git a/.gitignore b/.gitignore
     index 9196cf5..74b2861 100644
@@ -55,15 +54,17 @@ Installation
 3. some basics
 --------------
 
+- ``apt install unattended-upgrades``
 - use ``update-alternatives --config editor`` to choose the default editor (vim)
 - **lists.codespeak.net** > ``/etc/hostname``
 - check ``/etc/hosts``
+
 - ``reboot`` to properly update the hostname
 
 4. Postfix
 ----------
 
-- ``aptitude install postfix``
+- ``apt install postfix``
 - configuration type "Internet Site"
 - mail name **lists.codespeak.net**
 
@@ -83,9 +84,10 @@ Make sure the ``transport_file_type`` matches the type used for ``transport_maps
 
 Setup steps:
 
-- ``aptitude install virtualenv``
+- ``apt install virtualenv``
 - ``useradd --system --create-home --shell /bin/bash mailman``
 - ``usermod -a -G mailman postfix``
+
 - .. code-block:: diff
 
     diff --git a/postfix/main.cf b/postfix/main.cf
@@ -169,6 +171,7 @@ As user ``mailman`` (``su - mailman``):
 - ``ln -sf /etc/mailman3/mailman.cfg /home/mailman/var/etc/mailman.cfg``
 - ``/home/mailman/mailman/bin/mailman aliases``
 
+
 Back as user root:
 
 - ``systemctl enable mailman3-core.service``
@@ -184,10 +187,9 @@ Documentation used:
 
 Setup steps:
 
-- ``aptitude install opendkim opendkim-tools``
+- ``apt install opendkim opendkim-tools``
 - ``usermod -a -G opendkim postfix``
-- ``mkdir /var/spool/postfix/run``
-- ``mkdir /var/spool/postfix/run/opendkim``
+- ``mkdir -p /var/spool/postfix/run/opendkim``
 - ``chown opendkim:opendkim /var/spool/postfix/run/opendkim``
 - ``chmod o-rx /var/spool/postfix/run/opendkim/``
 - For new key: ``opendkim-genkey --directory /etc/dkimkeys --selector lists --domain lists.codespeak.net``
@@ -260,7 +262,7 @@ Documentation used:
 
 Setup steps:
 
-- ``aptitude install nginx sqlite3 uwsgi uwsgi-plugin-python``
+- ``apt install nginx sqlite3 uwsgi uwsgi-plugin-python``
 - ``useradd --system --create-home --shell /bin/bash postorius``
 - ``mkdir /var/www/postorius``
 - ``chown postorius:www-data /var/www/postorius``
@@ -477,7 +479,7 @@ Documentation used:
 
 Setup steps:
 
-- ``aptitude install dehydrated``
+- ``apt install dehydrated``
 - .. code-block:: bash
 
     CONTACT_EMAIL="admins@lists.codespeak.net"
@@ -685,8 +687,8 @@ Setup steps:
     deb-src http://rspamd.com/apt-stable/ stretch main
 
   > ``/etc/apt/sources.list.d/rspamd.list``
-- ``aptitude update``
-- ``aptitude install rspamd``
+- ``apt update``
+- ``apt install rspamd``
 - .. code-block::
 
     bind_socket = "localhost:11333";
@@ -730,7 +732,7 @@ Documentation used:
 
 Setup steps:
 
-- ``aptitude install borgbackup``
+- ``apt install borgbackup``
 - At this point you might want to restore your ssh key from backup,
 - Or create a new one: ``ssh-keygen -t rsa -b 4096``
 - Use public ssh key on destination host according to https://borgbackup.readthedocs.io/en/stable/deployment.html#restrictions
@@ -821,7 +823,7 @@ Setup steps:
 12. Commit hook for etckeeper
 -----------------------------
 
-- ``aptitude install mailutils``
+- ``apt install mailutils``
 - .. code-block:: bash
 
     #!/bin/sh
@@ -833,7 +835,7 @@ Setup steps:
 13. dovecot
 -----------
 
-- ``aptitude install dovecot-imapd``
+- ``apt install dovecot-imapd``
 - require SSL:
 - .. code-block:: diff
 
