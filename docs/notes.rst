@@ -213,7 +213,8 @@ Setup steps:
      # Note that setting this will override any Socket value in opendkim.conf
 
   > ``/etc/default/opendkim``
-- Edit ``/lib/systemd/system/opendkim.service`` to use ``/var/spool/postfix/run/opendkim/`` instead of ``/var/run/opendkim`` (``PIDFile`` and ``ExecStart``)
+- Copy ``/lib/systemd/system/opendkim.service`` to ``/etc/systemd/system/opendkim.service``
+- Edit ``/etc/systemd/system/opendkim.service`` to use ``/var/spool/postfix/run/opendkim/`` instead of ``/var/run/opendkim`` (``PIDFile`` and ``ExecStart``)
 - .. code-block:: diff
 
     diff --git a/opendkim.conf b/opendkim.conf
