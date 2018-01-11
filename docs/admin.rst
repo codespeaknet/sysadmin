@@ -24,3 +24,8 @@ Give sudo access
 ----------------
 
 - ``usermod -a -G sudo [username]``
+
+Fixup commit message after bad ``etckeeper commit``
+---------------------------------------------------
+
+- ``git commit --amend``
