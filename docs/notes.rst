@@ -950,3 +950,22 @@ Setup steps:
     +smtpd_sasl_path = private/auth
 - ``systemctl reload dovecot``
 - ``systemctl reload postfix``
+
+14. Add sudo
+------------
+
+- ``apt install sudo``
+- .. code-block:: diff
+
+    diff --git a/sudoers b/sudoers
+    index d4cc632..07f33a5 100644
+    --- a/sudoers
+    +++ b/sudoers
+    @@ -20,7 +20,7 @@ Defaults      secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/b
+     root   ALL=(ALL:ALL) ALL
+
+     # Allow members of group sudo to execute any command
+    -%sudo  ALL=(ALL:ALL) ALL
+    +%sudo  ALL=(ALL:ALL) NOPASSWD: ALL
+
+     # See sudoers(5) for more information on "#include" directives:
