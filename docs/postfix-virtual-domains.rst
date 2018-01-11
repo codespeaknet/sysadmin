@@ -4,6 +4,8 @@ Virtual domains for postfix
 Documentation used:
 
 - http://www.postfix.org/VIRTUAL_README.html
+- http://www.opendkim.org/opendkim-README
+
 
 Domain alias without separation of mail per domain
 --------------------------------------------------
@@ -24,3 +26,10 @@ Domain alias without separation of mail per domain
      relayhost =
      mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128
      mailbox_size_limit = 0
+- we use the ``default`` selector, because it was used on ``codespeak.net`` before
+- For new **DKIM** key: ``opendkim-genkey --directory /etc/dkimkeys --selector default --domain codespeak.net``
+- Or restore from backup and ``chmod 0600 /etc/dkimkeys/default.*``
+- ``chown opendkim /etc/dkimkeys/default.*``
+- Add the content of ``/etc/dkimkeys/default.txt`` to DNS
+- add TXT record for spf in DNS: ``@ IN TXT "v=spf1 ip4:78.47.150.134/32 ~all"``
+- ``systemctl reload opendkim``

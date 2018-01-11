@@ -67,6 +67,7 @@ Installation
 - ``apt install postfix``
 - configuration type "Internet Site"
 - mail name **lists.codespeak.net**
+- add TXT record for spf in DNS: ``lists IN TXT "v=spf1 ip4:78.47.150.134/32 ~all"``
 
 5. Mailman 3
 ------------
