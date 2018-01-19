@@ -956,6 +956,7 @@ Setup steps:
 ------------
 
 - ``apt install sudo``
+- Use ``visudo`` to edit ``/etc/sudoers``
 - .. code-block:: diff
 
     diff --git a/sudoers b/sudoers
