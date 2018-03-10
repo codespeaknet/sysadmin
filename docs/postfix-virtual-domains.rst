@@ -5,6 +5,7 @@ Documentation used:
 
 - http://www.postfix.org/VIRTUAL_README.html
 - http://www.opendkim.org/opendkim-README
+- https://wiki2.dovecot.org/AuthDatabase/PasswdFile
 
 
 Domain alias without separation of mail per domain
