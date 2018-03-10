@@ -38,6 +38,10 @@ Virtual domains in postfix
 --------------------------
 
 - add the new domain to ``virtual_mailbox_domains`` list in ``/etc/postfix/main.cf``
+
+  reload postfix ``postfix reload`` or ``systemctl reload postfix``
+
+
 - list each new mailbox in ``/etc/postfix/virtual_mailboxes`` followed by an space and a string,
 
   use OK as convention for the string.
