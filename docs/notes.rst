@@ -957,13 +957,23 @@ Setup steps:
 
 - ``apt install sudo``
 - Use ``visudo`` to edit ``/etc/sudoers``
-- .. code-block:: diff
+- Allow GIT* environmental vars to have proper names on git commits
+
+ .. code-block:: diff
 
     diff --git a/sudoers b/sudoers
-    index d4cc632..07f33a5 100644
+    index d4cc632..77b5539 100644
     --- a/sudoers
     +++ b/sudoers
-    @@ -20,7 +20,7 @@ Defaults      secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/b
+    @@ -9,6 +9,7 @@
+     Defaults       env_reset
+     Defaults       mail_badpass
+     Defaults       secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    +Defaults       env_keep ="GIT_AUTHOR_EMAIL GIT_AUTHOR_NAME GIT_COMMITTER_EMAIL GIT_COMMITTER_NAME"
+
+     # Host alias specification
+
+    @@ -20,7 +21,7 @@ Defaults      secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/b
      root   ALL=(ALL:ALL) ALL
 
      # Allow members of group sudo to execute any command
