@@ -985,8 +985,59 @@ Setup steps:
     +%sudo  ALL=(ALL:ALL) NOPASSWD: ALL
 
      # See sudoers(5) for more information on "#include" directives:
-  15. Add sshguard
-  ----------------
 
-  - ``apt install sshguard``
+15. Add sshguard
+----------------
+
+- ``apt install sshguard``
+
+16. Add fail2ban
+----------------
+
+- ``apt install fail2ban``
+
+- .. code-block:: diff
+
+     diff --git a/fail2ban/jail.conf b/fail2ban/jail.conf
+     index d80e3d0..3b2b08c 100644
+     --- a/fail2ban/jail.conf
+     +++ b/fail2ban/jail.conf
+     @@ -614,7 +614,7 @@ backend  = %(syslog_backend)s
+
+      [postfix-sasl]
+
+     -port     = smtp,465,submission,imap3,imaps,pop3,pop3s
+     +port     = smtp,465,submission,imap2,imaps,pop3,pop3s
+      # You might consider monitoring /var/log/mail.warn instead if you are
+      # running postfix since it would provide the same log lines at the
+      # "warn" level but overall at the smaller filesize.
+     diff --git a/fail2ban/jail.d/defaults-debian.conf b/fail2ban/jail.d/defaults-debian.conf
+     index 9eb356c..78630c7 100644
+     --- a/fail2ban/jail.d/defaults-debian.conf
+     +++ b/fail2ban/jail.d/defaults-debian.conf
+     @@ -1,2 +1,8 @@
+      [sshd]
+     +enabled = false
+     +
+     +[dovecot]
+     +enabled = true
+     +
+     +[postfix-sasl]
+      enabled = true
+     diff --git a/fail2ban/paths-common.conf b/fail2ban/paths-common.conf
+     index 9072136..d4226b6 100644
+     --- a/fail2ban/paths-common.conf
+     +++ b/fail2ban/paths-common.conf
+     @@ -66,7 +66,7 @@ vsftpd_log = /var/log/vsftpd.log
+      postfix_log = %(syslog_mail_warn)s
+      postfix_backend = %(default_backend)s
+
+     -dovecot_log = %(syslog_mail_warn)s
+     +dovecot_log = %(syslog_mail)s
+      dovecot_backend = %(default_backend)s
+
+      # Seems to be set at compile time only to LOG_LOCAL0 (src/const.h) at Notice level
+
+- sshguard is used because supports IPv6, fail2ban does not support IPv6 but supports more services
+
 
