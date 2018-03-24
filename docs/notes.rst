@@ -33,20 +33,24 @@ Installation
 ------------
 
 - ``apt install etckeeper``
-- .. code-block:: diff
-    diff --git a/.gitignore b/.gitignore
-    index 9196cf5..74b2861 100644
-    --- a/.gitignore
-    +++ b/.gitignore
-    @@ -46,6 +46,7 @@ check_mk/logwatch.state
 
-     # editor temp files
-     *~
-    +*-
-     .*.sw?
-     .sw?
-     \#*\#
-  > ``/etc/.gitignore``
+- .. code-block:: diff
+
+   diff --git a/.gitignore b/.gitignore
+   index 9196cf5..74b2861 100644
+   --- a/.gitignore
+   +++ b/.gitignore
+   @@ -46,6 +46,7 @@ check_mk/logwatch.state
+
+    # editor temp files
+    *~
+   +*-
+    .*.sw?
+    .sw?
+    \#*\#
+
+- ``> /etc/.gitignore``
+
 - You might want to edit ``/etc/etckeeper/etckeeper.conf`` to your liking.
   The most useful settings to look into are ``AVOID_DAILY_AUTOCOMMITS`` and
   ``AVOID_COMMIT_BEFORE_INSTALL``.
@@ -981,3 +985,8 @@ Setup steps:
     +%sudo  ALL=(ALL:ALL) NOPASSWD: ALL
 
      # See sudoers(5) for more information on "#include" directives:
+  15. Add sshguard
+  ----------------
+
+  - ``apt install sshguard``
+
