@@ -61,3 +61,24 @@ Virtual domains in postfix
   to generate the password, run ``doveadm pw -s SHA512-CRYPT`` the mailbox owner can do it on its own machine and provide the hash to us :)
 
   don't use more modern hashes, as the server may not support them. As Stretch Debian release SHA512-CRYPT is the best hash available
+
+Add a virtual mailbox
+---------------------
+
+- edit ``/etc/postfix/virtual_mailboxes``
+  add the email address followed by an space and a string, for convention use OK as a string
+
+- run ``postmap /etc/postfix/virtual_mailboxes`` after editing the file
+
+- run ``doveadm pw -s SHA512-CRYPT`` to hash the password
+
+- save the password in  ``/etc/dovecot/users`` along with the email address and six colons (:)
+
+
+Add a virtual alias
+-------------------
+
+- edit ``/etc/postfix/virtual_aliases``
+  add the email address followed by the destination address(es)
+
+- run ``postmap /etc/postfix/virtual_aliases``
