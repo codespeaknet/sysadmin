@@ -680,7 +680,209 @@ Now that we have a secure connection, we can continue with Mailman
      # m h dom mon dow user command
      17 *   * * *   root    cd / && run-parts --report /etc/cron.hourly
 
-10. rspamd
+10. HyperKitty mailing list archiver
+------------------------------------
+
+A prerequisit is the Sass CSS precompiler:
+
+- ``aptitude install sassc``
+
+First we do the Django side.
+We use the ``postorius`` installation for this and change the following.
+For ``MAILMAN_ARCHIVER_KEY`` you have to replace ``!!REPLACE_WITH_YOUR_KEY!!`` with a randomly generated key.
+One way to do that is with ``openssl rand -base64 32``.
+
+- .. code-block:: diff
+
+    diff -ru a/mailman_postorius/mailman_postorius/settings.py b/mailman_postorius/mailman_postorius/settings.py
+    --- a/mailman_postorius/mailman_postorius/settings.py  2017-07-05 10:14:04.271688080 +0200
+    +++ b/mailman_postorius/mailman_postorius/settings.py 2018-10-08 09:09:35.046133578 +0200
+    @@ -28,9 +28,14 @@
+     ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'lists.codespeak.net']
+
+
+    +# Archiver
+    +MAILMAN_ARCHIVER_KEY = !!REPLACE_WITH_YOUR_KEY!!
+    +MAILMAN_ARCHIVER_FROM = ('127.0.0.1', '::1')
+    +
+     # Application definition
+
+     INSTALLED_APPS = [
+    +    'compressor',
+         'django.contrib.admin',
+         'django.contrib.auth',
+         'django.contrib.contenttypes',
+    @@ -38,22 +41,25 @@
+         'django.contrib.sites',
+         'django.contrib.messages',
+         'django.contrib.staticfiles',
+    +    'haystack',
+    +    'hyperkitty',
+         'postorius',
+         'django_mailman3',
+         'django_gravatar',
+    +    'django_q',
+         'allauth',
+         'allauth.account',
+         'allauth.socialaccount',
+     ]
+    @@ -78,6 +84,7 @@
+                     'django.contrib.auth.context_processors.auth',
+                     'django.contrib.messages.context_processors.messages',
+                     'django_mailman3.context_processors.common',
+    +                'hyperkitty.context_processors.common',
+                     'postorius.context_processors.postorius',
+                 ],
+             },
+    @@ -136,6 +143,15 @@
+
+     STATIC_URL = '/static/'
+
+    +# List of finder classes that know how to find static files in
+    +# various locations.
+    +STATICFILES_FINDERS = (
+    +    'django.contrib.staticfiles.finders.FileSystemFinder',
+    +    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+    +    # 'django.contrib.staticfiles.finders.DefaultStorageFinder',
+    +    'compressor.finders.CompressorFinder',
+    +)
+    +
+     # Absolute path to the directory static files should be collected to.
+     # Don't put anything in this directory yourself; store your static files
+     # in apps' "static/" subdirectories and in STATICFILES_DIRS.
+    @@ -178,3 +197,33 @@
+     ACCOUNT_DEFAULT_HTTP_PROTOCOL = "https"
+     ACCOUNT_UNIQUE_EMAIL  = True
+
+    +# Async task settings
+    +
+    +Q_CLUSTER = {
+    +    'timeout': 300,
+    +    'save_limit': 100,
+    +    'orm': 'default',
+    +}
+    +
+    +COMPRESS_PRECOMPILERS = (
+    +  ('text/x-scss', 'sassc -t compressed {infile} {outfile}'),
+    +  ('text/x-sass', 'sassc -t compressed {infile} {outfile}'),
+    +)
+    +
+    +COMPRESS_ENABLED = True
+    +
+    +# On a production setup, setting COMPRESS_OFFLINE to True will bring a
+    +# significant performance improvement, as CSS files will not need to be
+    +# recompiled on each requests. It means running an additional "compress"
+    +# management command after each code upgrade.
+    +# http://django-compressor.readthedocs.io/en/latest/usage/#offline-compression
+    +COMPRESS_OFFLINE = True
+    +
+    +# Full text search config
+    +HAYSTACK_CONNECTIONS = {
+    +    'default': {
+    +        'ENGINE': 'haystack.backends.whoosh_backend.WhooshEngine',
+    +        'PATH': os.path.join(BASE_DIR, "fulltext_index"),
+    +    },
+    +}
+    +
+    +# HyperKitty
+    +FILTER_VHOST = False
+    +HYPERKITTY_DISABLE_SINGLETON_TASKS = False
+    +HYPERKITTY_TASK_LOCK_TIMEOUT = 10 * 60
+    +
+
+- .. code-block:: diff
+
+
+    diff -ru a/mailman_postorius/mailman_postorius/urls.py b/mailman_postorius/mailman_postorius/urls.py
+    --- a/mailman_postorius/mailman_postorius/urls.py  2017-07-05 09:49:19.208622793 +0200
+    +++ b/mailman_postorius/mailman_postorius/urls.py 2018-10-08 08:46:34.126326388 +0200
+    @@ -15,15 +15,18 @@
+     """
+     urlpatterns = [
+         url(r'^$', RedirectView.as_view(
+             url=reverse_lazy('list_index'),
+             permanent=False)),
+    +    url(r'^$', RedirectView.as_view(
+    +        url=reverse_lazy('hk_root'),
+    +        permanent=False)),
+         url(r'^postorius/', include('postorius.urls')),
+    -    #url(r'^hyperkitty/', include('hyperkitty.urls')),
+    +    url(r'^hyperkitty/', include('hyperkitty.urls')),
+         url(r'', include('django_mailman3.urls')),
+         url(r'^accounts/', include('allauth.urls')),
+         # Django admin
+
+- ``/home/postorius/postorius/bin/pip install HyperKitty Whoosh``
+- ``/home/postorius/mailman_postorius/manage.py migrate``
+- ``/home/postorius/mailman_postorius/manage.py collectstatic``
+- ``/home/postorius/mailman_postorius/manage.py compress``
+
+As the ``mailman`` user we have to install the archiver plugin.
+
+- ``/home/mailman/mailman/bin/pip install mailman-hyperkitty``
+
+As ``root`` we need to place some config files and reload/restart the services.
+
+Make hyperkitty URL available on localhost.
+
+- .. code-block:: nginx
+
+    server {
+            listen 127.0.0.1;
+            listen [::1];
+            server_name localhost;
+
+            location /hyperkitty {
+                    include uwsgi_params;
+                    uwsgi_pass unix:/run/uwsgi/app/postorius/socket;
+            }
+    }
+
+  > ``/etc/nginx/sites-available/localhost``
+
+- ``ln -s /etc/nginx/sites-available/localhost /etc/nginx/sites-enabled/``
+
+Add archiver config to ``mailman.cfg``
+
+- .. code-block:: ini
+
+    [archiver.hyperkitty]
+    class: mailman_hyperkitty.Archiver
+    enable: yes
+    configuration: /etc/mailman3/hyperkitty.cfg
+
+  >> ``/etc/mailman3/mailman.cfg``
+
+Add hyperkitty config. Replace the secret key with the same as above.
+
+- .. code-block:: ini
+
+    [general]
+
+    # This is your HyperKitty installation, preferably on the localhost. This
+    # address will be used by Mailman to forward incoming emails to HyperKitty
+    # for archiving. It does not need to be publicly available, in fact it's
+    # better if it is not.
+    base_url: http://localhost/hyperkitty/
+
+    # Shared API key, must be the identical to the value in HyperKitty's
+    # settings.
+    api_key: !!REPLACE_WITH_YOUR_KEY!!
+
+  > ``/etc/mailman3/hyperkitty.cfg``
+
+- ``systemctl stop mailman3-core``
+
+Unfortunately systemctl doesn't really stop mailman.
+Use ``systemctl status mailman3-core`` to see which PID the main ``/home/mailman/mailman/bin/python3 /home/mailman/mailman/bin/master -C /etc/mailman3/mailman.cfg`` process has.
+Use ``kill`` with the PID you got.
+Run ``systemctl status mailman3-core`` a few times until all sub-processes are shut down.
+
+- ``systemctl start mailman3-core``
+- ``systemctl restart uwsgi``
+
+
+11. rspamd
 ----------
 
 Documentation used:
@@ -732,7 +934,7 @@ Setup steps:
 
 - ``systemctl reload postfix``
 
-11. borgbackup
+12. borgbackup
 --------------
 
 Documentation used:
@@ -829,7 +1031,7 @@ Setup steps:
 
   > /etc/logrotate.d/borg-backup
 
-12. Commit hook for etckeeper
+13. Commit hook for etckeeper
 -----------------------------
 
 - ``apt install mailutils``
@@ -841,7 +1043,7 @@ Setup steps:
   > /etc/.git/hooks/post-commit
 - ``chmod u+x /etc/.git/hooks/post-commit``
 
-13. dovecot
+14. dovecot
 -----------
 
 - ``apt install dovecot-imapd``
@@ -959,7 +1161,7 @@ Setup steps:
 - ``systemctl reload dovecot``
 - ``systemctl reload postfix``
 
-14. Add sudo
+15. Add sudo
 ------------
 
 - ``apt install sudo``
@@ -989,12 +1191,12 @@ Setup steps:
 
      # See sudoers(5) for more information on "#include" directives:
 
-15. Add sshguard
+16. Add sshguard
 ----------------
 
 - ``apt install sshguard``
 
-16. Add fail2ban
+17. Add fail2ban
 ----------------
 
 - ``apt install fail2ban``
