@@ -268,13 +268,14 @@ Documentation used:
 
 Setup steps:
 
-- ``apt install nginx sqlite3 uwsgi uwsgi-plugin-python``
+- ``apt install nginx sqlite3 uwsgi uwsgi-plugin-python3``
 - ``useradd --system --create-home --shell /bin/bash postorius``
 - ``mkdir /var/www/postorius``
 - ``chown postorius:www-data /var/www/postorius``
 - .. code-block:: ini
 
     [uwsgi]
+    plugins = python3
     chdir = /home/postorius/mailman_postorius
     module = mailman_postorius.wsgi:application
     venv = /home/postorius/postorius
@@ -285,7 +286,7 @@ Setup steps:
 
 As user ``postorius`` (``su - postorius``):
 
-- ``virtualenv -p python2 /home/postorius/postorius``
+- ``virtualenv -p python3 /home/postorius/postorius``
 - ``/home/postorius/postorius/bin/pip install postorius``
 - ``mkdir /home/postorius/mailman_postorius``
 - ``/home/postorius/postorius/bin/django-admin startproject mailman_postorius /home/postorius/mailman_postorius``
@@ -319,15 +320,14 @@ As user ``postorius`` (``su - postorius``):
     +    'allauth.socialaccount',
      ]
 
-    -MIDDLEWARE = [
-    +MIDDLEWARE_CLASSES = [
+     MIDDLEWARE = [
          'django.middleware.security.SecurityMiddleware',
          'django.contrib.sessions.middleware.SessionMiddleware',
          'django.middleware.common.CommonMiddleware',
          'django.middleware.csrf.CsrfViewMiddleware',
     +    'django.middleware.locale.LocaleMiddleware',
          'django.contrib.auth.middleware.AuthenticationMiddleware',
-    +    'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
+    +    #'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
          'django.contrib.messages.middleware.MessageMiddleware',
          'django.middleware.clickjacking.XFrameOptionsMiddleware',
     +    'postorius.middleware.PostoriusMiddleware',
@@ -395,6 +395,9 @@ As user ``postorius`` (``su - postorius``):
     +}
     +
     +
+    +POSTORIUS_TEMPLATE_BASE_URL = 'https://lists.codespeak.net'
+    +
+    +
     +AUTHENTICATION_BACKENDS = (
     +    'django.contrib.auth.backends.ModelBackend',
     +    'allauth.account.auth_backends.AuthenticationBackend',
@@ -418,7 +421,7 @@ As user ``postorius`` (``su - postorius``):
     -from django.conf.urls import url
     +from django.conf.urls import include, url
      from django.contrib import admin
-    +from django.core.urlresolvers import reverse_lazy
+    +from django.urls import reverse_lazy
     +from django.views.generic import RedirectView
 
      urlpatterns = [
