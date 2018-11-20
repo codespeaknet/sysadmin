@@ -683,6 +683,11 @@ Now that we have a secure connection, we can continue with Mailman
 10. HyperKitty mailing list archiver
 ------------------------------------
 
+Documentation used:
+
+- https://hyperkitty.readthedocs.io/en/latest/install.html
+- https://gitlab.com/mailman/hyperkitty/blob/master/example_project/qcluster.service
+
 A prerequisit is the Sass CSS precompiler:
 
 - ``aptitude install sassc``
@@ -871,7 +876,41 @@ Add hyperkitty config. Replace the secret key with the same as above.
 
   > ``/etc/mailman3/hyperkitty.cfg``
 
+Add systemd service file for Django's qcluster task runner
+
+- .. code-block:: ini
+
+    [Unit]
+    Description=HyperKitty async tasks runner
+    After=network.target remote-fs.target
+
+    [Service]
+    ExecStart=/home/postorius/postorius/bin/django-admin qcluster --pythonpath /home/postorius/mailman_postorius --settings mailman_postorius.settings
+    User=postorius
+    Restart=always
+
+    [Install]
+    WantedBy=multi-user.target
+
+  > ``/etc/systemd/system/qcluster.service``
+
 - ``systemctl stop mailman3-core``
+
+Add cron jobs for Django
+
+- .. code-block::
+
+    MAILTO=admins@lists.codespeak.net
+
+    @hourly  postorius  /home/postorius/postorius/bin/django-admin runjobs hourly  /home/postorius/mailman_postorius --settings mailman_postorius.settings
+    @daily   postorius  /home/postorius/postorius/bin/django-admin runjobs daily   /home/postorius/mailman_postorius --settings mailman_postorius.settings
+    @weekly  postorius  /home/postorius/postorius/bin/django-admin runjobs weekly  /home/postorius/mailman_postorius --settings mailman_postorius.settings
+    @monthly postorius  /home/postorius/postorius/bin/django-admin runjobs monthly /home/postorius/mailman_postorius --settings mailman_postorius.settings
+    @yearly  postorius  /home/postorius/postorius/bin/django-admin runjobs yearly  /home/postorius/mailman_postorius --settings mailman_postorius.settings
+    * * * * *  postorius  /home/postorius/postorius/bin/django-admin runjobs minutely  /home/postorius/mailman_postorius --settings mailman_postorius.settings
+    2,17,32,47 * * * * postorius  /home/postorius/postorius/bin/django-admin runjobs quarter_hourly /home/postorius/mailman_postorius --settings mailman_postorius.settings
+
+  > ``/etc/cron.d/hyperkitty``
 
 Unfortunately systemctl doesn't really stop mailman.
 Use ``systemctl status mailman3-core`` to see which PID the main ``/home/mailman/mailman/bin/python3 /home/mailman/mailman/bin/master -C /etc/mailman3/mailman.cfg`` process has.
@@ -879,6 +918,7 @@ Use ``kill`` with the PID you got.
 Run ``systemctl status mailman3-core`` a few times until all sub-processes are shut down.
 
 - ``systemctl start mailman3-core``
+- ``systemctl start qcluster``
 - ``systemctl restart uwsgi``
 
 
