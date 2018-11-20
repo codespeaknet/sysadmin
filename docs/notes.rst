@@ -898,20 +898,6 @@ Add systemd service file for Django's qcluster task runner
 
 Add cron jobs for Django
 
-- .. code-block::
-
-    MAILTO=admins@lists.codespeak.net
-
-    @hourly  postorius  /home/postorius/postorius/bin/django-admin runjobs hourly  /home/postorius/mailman_postorius --settings mailman_postorius.settings
-    @daily   postorius  /home/postorius/postorius/bin/django-admin runjobs daily   /home/postorius/mailman_postorius --settings mailman_postorius.settings
-    @weekly  postorius  /home/postorius/postorius/bin/django-admin runjobs weekly  /home/postorius/mailman_postorius --settings mailman_postorius.settings
-    @monthly postorius  /home/postorius/postorius/bin/django-admin runjobs monthly /home/postorius/mailman_postorius --settings mailman_postorius.settings
-    @yearly  postorius  /home/postorius/postorius/bin/django-admin runjobs yearly  /home/postorius/mailman_postorius --settings mailman_postorius.settings
-    * * * * *  postorius  /home/postorius/postorius/bin/django-admin runjobs minutely  /home/postorius/mailman_postorius --settings mailman_postorius.settings
-    2,17,32,47 * * * * postorius  /home/postorius/postorius/bin/django-admin runjobs quarter_hourly /home/postorius/mailman_postorius --settings mailman_postorius.settings
-
-  > ``/etc/cron.d/hyperkitty``
-
 Unfortunately systemctl doesn't really stop mailman.
 Use ``systemctl status mailman3-core`` to see which PID the main ``/home/mailman/mailman/bin/python3 /home/mailman/mailman/bin/master -C /etc/mailman3/mailman.cfg`` process has.
 Use ``kill`` with the PID you got.
