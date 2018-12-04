@@ -724,6 +724,7 @@ One way to do that is with ``openssl rand -base64 32``.
     +    'haystack',
     +    'hyperkitty',
          'postorius',
+    +    'django_extensions',
          'django_mailman3',
          'django_gravatar',
     +    'django_q',
@@ -897,6 +898,20 @@ Add systemd service file for Django's qcluster task runner
 - ``systemctl stop mailman3-core``
 
 Add cron jobs for Django
+
+- .. code-block::
+
+    MAILTO=admins@lists.codespeak.net
+
+    @hourly  postorius  /home/postorius/postorius/bin/django-admin runjobs hourly  --pythonpath /home/postorius/mailman_postorius --settings mailman_postorius.settings
+    @daily   postorius  /home/postorius/postorius/bin/django-admin runjobs daily   --pythonpath /home/postorius/mailman_postorius --settings mailman_postorius.settings
+    @weekly  postorius  /home/postorius/postorius/bin/django-admin runjobs weekly  --pythonpath /home/postorius/mailman_postorius --settings mailman_postorius.settings
+    @monthly postorius  /home/postorius/postorius/bin/django-admin runjobs monthly --pythonpath /home/postorius/mailman_postorius --settings mailman_postorius.settings
+    @yearly  postorius  /home/postorius/postorius/bin/django-admin runjobs yearly  --pythonpath /home/postorius/mailman_postorius --settings mailman_postorius.settings
+    * * * * *  postorius  /home/postorius/postorius/bin/django-admin runjobs minutely --pythonpath /home/postorius/mailman_postorius --settings mailman_postorius.settings
+    2,17,32,47 * * * * postorius  /home/postorius/postorius/bin/django-admin runjobs quarter_hourly --pythonpath /home/postorius/mailman_postorius --settings mailman_postorius.settings
+
+  > ``/etc/cron.d/hyperkitty``
 
 Unfortunately systemctl doesn't really stop mailman.
 Use ``systemctl status mailman3-core`` to see which PID the main ``/home/mailman/mailman/bin/python3 /home/mailman/mailman/bin/master -C /etc/mailman3/mailman.cfg`` process has.
