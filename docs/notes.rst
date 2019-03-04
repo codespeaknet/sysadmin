@@ -885,7 +885,6 @@ Setup steps:
     }
 
   > ``/etc/rspamd/local.d/worker-proxy.inc``
-- ``systemctl reload rspamd``
 - .. code-block:: diff
 
     diff --git a/postfix/main.cf b/postfix/main.cf
@@ -937,9 +936,80 @@ Setup steps:
 
   ``opendkim-genkey --directory /etc/dkimkeys --selector lists --domain lists.codespeak.net``
 
-  Keys in `/etc/dkimkeys/` have to allow the `_rspamd` user to read them
+  Keys in `/etc/dkimkeys/` permissions have to allow the `_rspamd` user to read them
+
+- configure rspamd to use redis
+
+  rspamd uses redis to cache results and to use the replies module
+
+  ``apt install redis-server``
+
+- .. code-block:: nginx
+
+   servers = "127.0.0.1:6379"
+
+> ``/etc/rspamd/local.d/redis.conf``
+
+- .. code-block:: nginx
+
+   action = "no action";
+   expire = 691200; # 8 days
+   key_prefix = "rr";
+   message = "Message is reply to one we originated";
+   symbol = "REPLY";
+
+> ``/etc/rspamd/local.d/replies.conf``
+
+- configure rspamd rbl
+    Hetzner network ranges are block in SpamHaus, so we either need to
+
+    a) disable SpamHaus
+    b) Ask for a free (of cost) account in SpamHaus, using this link https://www.spamhaustech.com/dqs/
+
+- .. code-block:: nginx
+
+   rbls {
+         spamhaus {
+                 disabled = false;
+                 rbl = "$PRIVATE_HOSTNAME.spamhaus.net";
+         }
+         spamhaus_received {
+                 disabled = false;
+                 rbl = "$PRIVATE_HOSTNAME.spamhaus.net";
+         }
+         nixspam {
+                 disabled = true;
+         }
+         sem {
+                 disabled = true;
+         }
+         semIPv6 {
+                 disabled = true;
+         }
+    }
+> ``/etc/rspamd/local.d/rbl.conf``
+
+Other RBL are disabled due to performance issues (https://github.com/codespeaknet/sysadmin/issues/9)
+
+- configure rspamd to logging more
+
+- .. code-block:: nginx
+
+   global {
+    use_dcc = no;
+   }
+   spamd {
+    spamd_never_reject = yes;
+    extended_spam_headers = yes;
+    local_headers = ["x-spamd-bar"];
+    authenticated_headers = ["authentication-results"];
+    skip_local = false;
+    skip_authenticated = true;
+   }
+> ``/etc/rspamd/local.d/milter_headers.conf``
 
 
+- ``systemctl reload rspamd``
 
 11. borgbackup
 --------------
