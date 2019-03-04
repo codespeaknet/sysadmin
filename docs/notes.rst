@@ -183,80 +183,7 @@ Back as user root:
 - ``systemctl start mailman3-core.service``
 - ``systemctl reload postfix``
 
-6. OpenDKIM
------------
-
-Documentation used:
-
-- http://www.opendkim.org/docs.html
-
-Setup steps:
-
-- ``apt install opendkim opendkim-tools``
-- ``usermod -a -G opendkim postfix``
-- ``mkdir -p /var/spool/postfix/run/opendkim``
-- ``chown opendkim:opendkim /var/spool/postfix/run/opendkim``
-- ``chmod o-rx /var/spool/postfix/run/opendkim/``
-- For new key: ``opendkim-genkey --directory /etc/dkimkeys --selector lists --domain lists.codespeak.net``
-- Or restore from backup and ``chmod 0600 /etc/dkimkeys/lists.*``
-- ``chown opendkim /etc/dkimkeys/lists.*``
-- Add the content of ``/etc/dkimkeys/lists.txt`` to DNS
-- .. code-block:: diff
-
-    diff --git a/default/opendkim b/default/opendkim
-    index ffb2a02..666d5d2 100644
-    --- a/default/opendkim
-    +++ b/default/opendkim
-    @@ -4,7 +4,7 @@
-     # Change to /var/spool/postfix/var/run/opendkim to use a Unix socket with
-     # postfix in a chroot:
-     #RUNDIR=/var/spool/postfix/var/run/opendkim
-    -RUNDIR=/var/run/opendkim
-    +RUNDIR=/var/spool/postfix/run/opendkim
-     #
-     # Uncomment to specify an alternate socket
-     # Note that setting this will override any Socket value in opendkim.conf
-
-  > ``/etc/default/opendkim``
-- Copy ``/lib/systemd/system/opendkim.service`` to ``/etc/systemd/system/opendkim.service``
-- Edit ``/etc/systemd/system/opendkim.service`` to use ``/var/spool/postfix/run/opendkim/`` instead of ``/var/run/opendkim`` (``PIDFile`` and ``ExecStart``)
-- .. code-block:: diff
-
-    diff --git a/opendkim.conf b/opendkim.conf
-    index 4b0cc1f..1edb242 100644
-    --- a/opendkim.conf
-    +++ b/opendkim.conf
-    @@ -47,3 +47,7 @@ OversignHeaders               From
-     ## at http://unbound.net for the expected format of this file.
-
-     TrustAnchorFile       /usr/share/dns/root.key
-    +SenderHeaders Sender,From
-    +Domain lists.codespeak.net
-    +KeyFile /etc/dkimkeys/lists.private
-    +Selector lists
-
-  > ``/etc/opendkim.conf``
-- Using ``/var/spool/postfix`` is required because postfix runs in a chroot
-- .. code-block:: diff
-
-    diff --git a/postfix/main.cf b/postfix/main.cf
-    index 8b5350a..b5ff7cf 100644
-    --- a/postfix/main.cf
-    +++ b/postfix/main.cf
-    @@ -47,3 +47,5 @@ owner_request_special = no
-     transport_maps = hash:/home/mailman/var/data/postfix_lmtp
-     local_recipient_maps = hash:/home/mailman/var/data/postfix_lmtp
-     relay_domains = hash:/home/mailman/var/data/postfix_domains
-    +smtpd_milters = unix:/run/opendkim/opendkim.sock
-    +non_smtpd_milters = unix:/run/opendkim/opendkim.sock
-
-  > ``/etc/postfix/main.cf``
-- ``systemctl daemon-reload``
-- ``systemctl stop opendkim``
-- ``systemctl start opendkim``
-- ``systemctl reload postfix``
-
-7. Postorius (Mailman Web UI) with nginx
+6. Postorius (Mailman Web UI) with nginx
 ----------------------------------------
 
 Documentation used:
@@ -477,7 +404,7 @@ Back as user root:
 - ``systemctl reload nginx``
 - You shouldn't use this until after the next step which adds https!
 
-8. Let's Encrypt
+7. Let's Encrypt
 ----------------
 
 Documentation used:
@@ -648,7 +575,7 @@ Setup steps:
      #  -o smtpd_helo_restrictions=$mua_helo_restrictions
 - ``systemctl reload postfix``
 
-9. Mailman admins
+8. Mailman admins
 -----------------
 
 Now that we have a secure connection, we can continue with Mailman
@@ -680,7 +607,7 @@ Now that we have a secure connection, we can continue with Mailman
      # m h dom mon dow user command
      17 *   * * *   root    cd / && run-parts --report /etc/cron.hourly
 
-10. HyperKitty mailing list archiver
+9. HyperKitty mailing list archiver
 ------------------------------------
 
 Documentation used:
@@ -923,7 +850,7 @@ Run ``systemctl status mailman3-core`` a few times until all sub-processes are s
 - ``systemctl restart uwsgi``
 
 
-11. rspamd
+10. rspamd
 ----------
 
 Documentation used:
@@ -969,13 +896,52 @@ Setup steps:
      transport_maps = hash:/home/mailman/var/data/postfix_lmtp
      local_recipient_maps = hash:/home/mailman/var/data/postfix_lmtp
      relay_domains = hash:/home/mailman/var/data/postfix_domains
-    -smtpd_milters = unix:/run/opendkim/opendkim.sock
-    +smtpd_milters = unix:/run/opendkim/opendkim.sock, inet:localhost:11332
-     non_smtpd_milters = unix:/run/opendkim/opendkim.sock
+    +smtpd_milters = inet:localhost:11332
 
 - ``systemctl reload postfix``
 
-12. borgbackup
+- configure rspamd to sign email headers (dkim)
+
+- .. code-block:: nginx
+
+   allow_envfrom_empty = true;
+   allow_hdrfrom_mismatch = false;
+   allow_hdrfrom_multiple = false;
+   allow_username_mismatch = false;
+   auth_only = true;
+   path = "/etc/dkimkeys/$selector.private.$domain";
+   selector = "mail";
+   sign_local = true;
+   sign_networks = "/etc/dkimkeys/TrustedHosts";
+   symbol = "DKIM_SIGNED";
+   try_fallback = true;
+   use_domain = "header";
+   use_esld = false;
+   use_redis = false;
+   key_prefix = "DKIM_KEYS";
+   sign_headers = 'from:subject:date:to'
+   domain {
+    # Domain name is used as key
+    lists.codespeak.net {
+      # Private key path
+      path = "/etc/dkimkeys/lists.private";
+      # Selector
+      selector = "lists";
+    }
+   }
+  > ``/etc/rspamd/local.d/dkim_signing.conf``
+
+  Generate the keys using `opendkim-genkey` from the opendkim-tools package
+
+  ``apt install opendkim-tools``
+
+  ``opendkim-genkey --directory /etc/dkimkeys --selector lists --domain lists.codespeak.net``
+
+  Keys in `/etc/dkimkeys/` have to allow the `_rspamd` user to read them
+
+
+
+11. borgbackup
 --------------
 
 Documentation used:
@@ -1072,7 +1038,7 @@ Setup steps:
 
   > /etc/logrotate.d/borg-backup
 
-13. Commit hook for etckeeper
+12. Commit hook for etckeeper
 -----------------------------
 
 - ``apt install mailutils``
@@ -1084,7 +1050,7 @@ Setup steps:
   > /etc/.git/hooks/post-commit
 - ``chmod u+x /etc/.git/hooks/post-commit``
 
-14. dovecot
+13. dovecot
 -----------
 
 - ``apt install dovecot-imapd``
@@ -1202,7 +1168,7 @@ Setup steps:
 - ``systemctl reload dovecot``
 - ``systemctl reload postfix``
 
-15. Add sudo
+14. Add sudo
 ------------
 
 - ``apt install sudo``
@@ -1232,12 +1198,12 @@ Setup steps:
 
      # See sudoers(5) for more information on "#include" directives:
 
-16. Add sshguard
+15. Add sshguard
 ----------------
 
 - ``apt install sshguard``
 
-17. Add fail2ban
+16. Add fail2ban
 ----------------
 
 - ``apt install fail2ban``
